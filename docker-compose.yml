@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  nginx:
+    build:
+      context: ./docker/nginx/dev
+    container_name: todo-nginx
+    volumes:
+      - sockets:/backend/tmp/sockets
+      - ./public:/backend/public
+    ports:
+      - "80:80"
+    depends_on:
+      - puma
+
+  puma:
+    tty: true
+    stdin_open: true
+    build:
+      context: .
+      dockerfile: ./docker/puma/dev/Dockerfile
+    container_name: todo-puma
+    command: bundle exec puma -C config/puma.rb -p 3001
+    volumes:
+    - .:/backend
+    - gems:/backend/vendor/bundle
+    - sockets:/backend/tmp/sockets
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mysql
+#      - redis
+#      - minio
+
+  mysql:
+    image: mysql:8.0
+    platform: linux/x86_64
+    container_name: todo-mysql
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - ./provisioning/sql.d:/docker-entrypoint-initdb.d
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+#  redis:
+#    image: redis:latest
+#    container_name: todo-redis
+#    command: redis-server --appendonly yes
+#    volumes:
+#      - redis_data:/data
+#    ports:
+#      - "6379:6379"
+
+#  minio:
+#    build:
+#      context: ./docker/minio
+#    container_name: todo-minio
+#    environment:
+#      MINIO_ACCESS_KEY: minio_access_key
+#      MINIO_SECRET_KEY: minio_secret_key
+#      PUBLIC_IMAGE_BUCKET: public-image-bucket
+#    volumes:
+#      - ./docker/minio/data:/data
+#    ports:
+#      - "9000:9000"
+
+volumes:
+  mysql_data:
+  redis_data:
+  gems:
+  sockets:
